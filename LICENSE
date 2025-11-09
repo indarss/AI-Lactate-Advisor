@@ -1,33 +1,23 @@
-AI Lactate Advisor — Custom License Agreement
-=============================================
+# ⚖️ License — AI-Lactate-Advisor
 
-Copyright (c) 2025 Indars and the AI Lactate Advisor Team  
-All rights reserved.
+All rights reserved © 2025 **Indars and team**.
 
-This software, source code, models, and accompanying documentation 
-("the Software") were created by Indars and the AI Lactate Advisor Team 
-for research, educational, and demonstration purposes.
+This repository and its contents (including code, data, documentation, and trained models) are the intellectual property of the author(s).
 
-You are permitted to:
-- View, clone, or run this project locally for non-commercial, 
-  educational, or evaluation use.
+## 🔒 Usage
+You may:
+- View and reference the code and documentation for educational or evaluation purposes.
+- Fork or clone the repository **only** for collaboration with the owner’s written permission.
 
-You are **not permitted** to:
-- Reuse, redistribute, or modify the Software for commercial purposes.
-- Rebrand, sublicense, or integrate the Software into another project 
-  without prior written consent from the author.
+You may **not**:
+- Redistribute, copy, modify, or sell this work in any form.
+- Deploy, publish, or use derived models or datasets without explicit authorization.
 
-For any commercial, academic, or derivative use, please contact:  
-📧 sparnins@hotmail.com
+## 🧠 Attribution
+Any presentation, publication, or derivative work must credit:
+**“AI-Lactate-Advisor by Indars and team”**
 
-Permission for such use may be granted at the discretion of the author.
+## 📧 Contact
+For collaboration, usage permissions, or licensing inquiries:  
+📩 **sparnins@hotmail.com**
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, 
-EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF 
-MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. 
-IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY CLAIM, DAMAGES OR 
-OTHER LIABILITY ARISING FROM THE USE OR INABILITY TO USE THE SOFTWARE.
-
----  
-Created by **Indars**  
-Lead developer and owner of the AI Lactate Advisor project.

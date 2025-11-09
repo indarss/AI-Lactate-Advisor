@@ -1,219 +1,319 @@
-import streamlit as st
-import pandas as pd
-import numpy as np
-import joblib
+import os
 import time
-import matplotlib.pyplot as plt
-import shap
+import numpy as np
+import pandas as pd
+import streamlit as st
+import plotly.express as px
+import plotly.graph_objects as go
+
+# === Model & utils ===
 from model_utils import (
     make_features,
     load_model, prepare_features,
     predict_lactate, predict_recovery,
-    get_shap_summary, smooth_series
+    get_shap_summary, smooth_series,
+    add_hr_slopes, add_rolling_features
 )
 
-# Load trained models
-lactate_model = load_model("models/lactate_lightgbm_model.joblib")
-recovery_model = load_model("models/recovery_lightgbm_model.joblib")
+# -----------------------------
+# Config
+# -----------------------------
+st.set_page_config(
+    page_title='AI Lactate Advisor',
+    page_icon='🧠',
+    layout='wide'
+)
 
+MODELS_DIR = 'models'
+LACTATE_MODEL_PATH = os.path.join(MODELS_DIR, 'lactate_lightgbm_model.joblib')
+RECOVERY_MODEL_PATH = os.path.join(MODELS_DIR, 'recovery_lightgbm_model.joblib')
 
-# Matplotlib styling for nicer visuals
-plt.rcParams.update({
-    "axes.grid": True,
-    "grid.alpha": 0.3,
-    "axes.titlesize": 14,
-    "axes.labelsize": 12,
-    "font.size": 12
-})
+# -----------------------------
+# Helpers
+# -----------------------------
+@st.cache_resource(show_spinner=False)
+def _load_models():
+    # Safely load models once
+    lm = load_model(LACTATE_MODEL_PATH)
+    rm = load_model(RECOVERY_MODEL_PATH)
+    return lm, rm
 
-st.set_page_config(page_title="AI Lactate Zone & Recovery Advisor", layout="wide")
-st.title("AI Lactate Zone & Recovery Advisor (Demo)")
+def generate_synthetic_session(n_seconds: int = 300, seed: int = 42) -> pd.DataFrame:
+    # Create a 5-minute synthetic workout with HR and Power to demo the app.
+    rng = np.random.default_rng(seed)
+    t = np.arange(n_seconds)
+    power = np.clip(150 + 2.0*t + rng.normal(0, 12, n_seconds), 80, 450)
+    hr = np.clip(120 + 0.15*t + rng.normal(0, 2, n_seconds), 80, 200)
+    df = pd.DataFrame({
+        'time': t,
+        'power': power,
+        'hr': hr,
+        'cadence': np.clip(85 + rng.normal(0, 2, n_seconds), 60, 110),
+        'temperature': np.clip(20 + rng.normal(0, 0.3, n_seconds), 5, 40)
+    })
+    return df
 
-st.sidebar.header("Load / Settings")
-model_path = st.sidebar.text_input("Model path (joblib)", "model.joblib")
-data_path = st.sidebar.text_input("Live data CSV (sample)", "sample_live.csv")
-simulate = st.sidebar.checkbox("Simulate live stream", True)
-window_sec = st.sidebar.number_input("Feature window seconds", 60, min_value=10, max_value=300, step=10)
-recompute_shap = st.sidebar.button("Recompute SHAP (if model changed)")
+def ensure_columns(df: pd.DataFrame, required_cols):
+    missing = [c for c in required_cols if c not in df.columns]
+    if missing:
+        st.warning(f'Adding missing columns with defaults: {missing}')
+        for c in missing:
+            df[c] = 0.0
+    return df
 
-# Load model
-model = None
-try:
-    model = joblib.load(model_path)
-    st.sidebar.success(f"Loaded model: {model_path}")
-except Exception as e:
-    st.sidebar.warning(f"Could not load model: {e}.")
+def plot_hr_slope_plotly(df: pd.DataFrame):
+    # Interactive Plotly HR slope trends (HR, Power, and HR slope).
+    df = df.copy()
+    if 'hr_slope_time' not in df.columns:
+        df = add_hr_slopes(df.rename(columns={'hr': 'heart_rate'})).rename(columns={'heart_rate':'hr'})
+    # scale power and slope for visualization
+    hr_min = df['hr'].min() if 'hr' in df else 0
+    power_scaled = (df['power'] / df['power'].max() * 40) + hr_min if 'power' in df else None
+    slope_scaled = (df['hr_slope_time'].fillna(0) * 80) + df['hr'].mean()
 
-# Load data
-@st.cache_data
-def load_csv(p):
+    fig = go.Figure()
+    if 'hr' in df:
+        fig.add_trace(go.Scatter(x=df['time'], y=df['hr'],
+                                 mode='lines', name='Heart Rate (bpm)'))
+    if power_scaled is not None:
+        fig.add_trace(go.Scatter(x=df['time'], y=power_scaled,
+                                 mode='lines', name='Power (scaled)'))
+    fig.add_trace(go.Scatter(x=df['time'], y=slope_scaled,
+                             mode='lines', name='HR Slope (scaled, bpm/s)',
+                             line=dict(dash='dot')))
+    fig.update_layout(
+        title='💓 Heart Rate Slope Trends (interactive)',
+        xaxis_title='Time (s)',
+        yaxis_title='Value / scaled',
+        legend_orientation='h',
+        margin=dict(l=10, r=10, t=50, b=10)
+    )
+    return fig
+
+def readiness_gauge(score: float):
+    # Plotly gauge for recovery readiness (0-100).
+    fig = go.Figure(go.Indicator(
+        mode='gauge+number',
+        value=float(score),
+        gauge={
+            'axis': {'range': [0, 100]},
+            'bar': {'thickness': 0.25},
+            'steps': [
+                {'range': [0, 60], 'color': '#ff4b4b'},
+                {'range': [60, 80], 'color': '#ffd166'},
+                {'range': [80, 100], 'color': '#06d6a0'},
+            ]
+        },
+        title={'text': 'Recovery Readiness'}
+    ))
+    fig.update_layout(height=260, margin=dict(l=10, r=10, t=30, b=10))
+    return fig
+
+# -----------------------------
+# Sidebar
+# -----------------------------
+st.sidebar.title('⚙️ Controls')
+uploaded = st.sidebar.file_uploader('Upload session CSV', type=['csv'])
+use_synth = st.sidebar.button('Generate synthetic demo data')
+show_raw = st.sidebar.checkbox('Show raw data', value=False)
+
+st.sidebar.markdown('---')
+st.sidebar.caption('Models:')
+models_present = os.path.exists(LACTATE_MODEL_PATH) and os.path.exists(RECOVERY_MODEL_PATH)
+if models_present:
+    st.sidebar.success('Models found ✅')
+else:
+    st.sidebar.error('Model files missing. Please train via notebook.')
+
+# -----------------------------
+# Title
+# -----------------------------
+st.title('🧠 AI Lactate Advisor')
+st.caption('Real-time lactate & recovery insights with explainable AI')
+
+# Load models (if available)
+lactate_model, recovery_model = (None, None)
+if models_present:
     try:
-        return pd.read_csv(p, parse_dates=["timestamp", '💓 HR Slope Trends'])
+        with st.spinner('Loading models...'):
+            lactate_model, recovery_model = _load_models()
+            time.sleep(0.2)
+        st.success('Models loaded.')
     except Exception as e:
-        st.error(f"Failed to load CSV: {e}")
-        return pd.DataFrame()
-df_live = load_csv(data_path)
+        st.error(f'Failed to load models: {e}')
 
-tab1, tab2, tab3, tab4 = st.tabs(["Live Session", "Model Insights (SHAP)", '💓 HR Slope Trends'])
+# -----------------------------
+# Data source
+# -----------------------------
+df_session = None
+if uploaded is not None:
+    df_session = pd.read_csv(uploaded)
+elif use_synth:
+    df_session = generate_synthetic_session()
+else:
+    st.info("Upload a CSV or click 'Generate synthetic demo data' in the sidebar to begin.")
 
+# -----------------------------
+# Tabs
+# -----------------------------
+tab1, tab2, tab3, tab4 = st.tabs([
+    '🏃 Live Session',
+    '📊 SHAP Insights',
+    '💓 HR Slope Trends',
+    '🧬 Recovery Dashboard'
+])
+
+# ===========================================================
+# 🏃 Live Session
+# ===========================================================
 with tab1:
-    col1, col2 = st.columns([3,1, '💓 HR Slope Trends'])
-    with col1:
-        st.subheader("Live Session (simulated)")
-        chart_placeholder = st.empty()
-        info_placeholder = st.empty()
-    with col2:
-        st.subheader("Controls / Counterfactuals")
-        cf_power_delta = st.slider("Counterfactual power adjustment (%)", -20, 20, 0, step=1)
-        run_button = st.button("Run counterfactual for next window")
+    st.subheader('🏃 Live Session')
+    if df_session is not None:
+        # Ensure necessary columns
+        df_session = ensure_columns(df_session, ['time', 'power', 'hr'])
+        st.write('Session preview:')
+        if show_raw:
+            st.dataframe(df_session.head(100), use_container_width=True)
 
-    if df_live.shape[0, '💓 HR Slope Trends'] == 0:
-        st.info("Load a sample_live.csv file or run the training notebook to generate sample data.")
-    else:
-        preds, times, lactates = [, '💓 HR Slope Trends'], [, '💓 HR Slope Trends'], [, '💓 HR Slope Trends']
-        for i, row in df_live.iterrows():
-            t = row["timestamp", '💓 HR Slope Trends']
-            recent = df_live[df_live["timestamp", '💓 HR Slope Trends'] <= t, '💓 HR Slope Trends'].copy().tail(window_sec)
-            X = make_features(recent)
-            times.append(t)
-            pred = np.nan
-            if model is not None:
-                try:
-                    pred = model.predict(X)[0, '💓 HR Slope Trends']
-                except Exception:
-                    pred = np.nan
-            preds.append(pred)
-            lactates.append(row.get("lactate", np.nan))
-            if i % 5 == 0 or i == len(df_live)-1:
-                plot_df = pd.DataFrame({"time": times, "predicted_lactate": preds, "true_lactate": lactates}).set_index("time")
-                st.line_chart(plot_df)
-                info_placeholder.metric("Latest predicted lactate (mmol/L)",
-                                        f"{preds[-1, '💓 HR Slope Trends']:.2f}" if not np.isnan(preds[-1, '💓 HR Slope Trends']) else "n/a")
-                time.sleep(0.03)
+        # Feature prep for lactate predictions
+        with st.spinner('Computing features...'):
+            df_for_model = df_session.rename(columns={'hr': 'heart_rate'})  # align with utility naming
+            df_for_model = add_hr_slopes(df_for_model)
+            df_for_model = add_rolling_features(df_for_model, 30)
+            X = df_for_model.drop(columns=[c for c in ['lactate', 'recovery_score'] if c in df_for_model.columns], errors='ignore')
 
-        if run_button and model is not None:
-            last_row = df_live.iloc[-1, '💓 HR Slope Trends']
-            st.write("Running counterfactuals for the most recent window...")
-            cf_results = [, '💓 HR Slope Trends']
-            for pct in [-10, -5, 0, 5, 10, '💓 HR Slope Trends']:
-                modified = df_live.copy()
-                modified.loc[modified.index >= modified.index.max(), "power", '💓 HR Slope Trends'] = last_row["power", '💓 HR Slope Trends'] * (1 + pct/100)
-                Xcf = make_features(modified.tail(window_sec))
-                pred_cf = model.predict(Xcf)[0, '💓 HR Slope Trends']
-                cf_results.append((pct, pred_cf))
-            cf_df = pd.DataFrame(cf_results, columns=["power_delta_pct", "predicted_lactate", '💓 HR Slope Trends'])
-            st.table(cf_df)
+        # Predict lactate
+        if lactate_model is not None:
+            with st.spinner('Predicting lactate levels...'):
+                y_pred = predict_lactate(lactate_model, X)
+                time.sleep(0.1)
+            st.success('Lactate prediction complete ✅')
 
-st.markdown(
-    """
-    <div style="padding:10px; border:1px solid #e0e0e0; background:#f9fbff; border-radius:8px; margin-top:8px;">
-    <b>What these scenarios mean:</b><br/>
-    • The slider applies a small change to a controllable input (e.g., power ±5%).<br/>
-    • The model predicts the resulting lactate for each scenario.<br/>
-    • Use this to decide pacing: <i>“If we ease by 5%, will we return to aerobic?”</i>
-    </div>
-    """, unsafe_allow_html=True
-)
-
-
-with tab2:
-    st.subheader("Global & Per-Sample SHAP Feature Importance")
-    if model is None:
-        st.info("Load a trained model (model.joblib) to compute SHAP values.")
-    else:
-        @st.cache_data(show_spinner=False)
-        def build_feature_matrix(df, window_sec=60, max_samples=200):
-            rows, times = [, '💓 HR Slope Trends'], [, '💓 HR Slope Trends']
-            for i, row in df.iterrows():
-                t = row["timestamp", '💓 HR Slope Trends']
-                recent = df[df["timestamp", '💓 HR Slope Trends'] <= t, '💓 HR Slope Trends'].copy().tail(window_sec)
-                X = make_features(recent)
-                rows.append(X.iloc[0, '💓 HR Slope Trends'].to_dict())
-                times.append(t)
-                if len(rows) >= max_samples: break
-            if len(rows)==0: return pd.DataFrame(), [, '💓 HR Slope Trends']
-            return pd.DataFrame(rows), times
-
-        X_shap, times_shap = build_feature_matrix(df_live, window_sec=window_sec, max_samples=200)
-        if X_shap.shape[0, '💓 HR Slope Trends'] == 0:
-            st.warning("Not enough data to compute SHAP. Try a larger sample CSV.")
+            # Show last prediction
+            latest_pred = float(y_pred[-1]) if len(y_pred) else None
+            if latest_pred is not None:
+                colL, colR = st.columns([3,1])
+                with colL:
+                    fig_lp = px.line(x=df_session['time'], y=y_pred, labels={'x': 'Time (s)', 'y': 'Predicted Lactate (mmol/L)'},
+                                     title='Predicted Lactate Over Time')
+                    st.plotly_chart(fig_lp, use_container_width=True)
+                with colR:
+                    st.metric('Latest lactate', f'{latest_pred:.2f} mmol/L')
         else:
-            try:
-                explainer = shap.TreeExplainer(model)
-                shap_values = explainer.shap_values(X_shap)  # (n_samples, n_features) for regression
-                mean_abs = np.mean(np.abs(shap_values), axis=0)
-                feat_imp = pd.DataFrame({"feature": X_shap.columns, "mean_abs_shap": mean_abs}).sort_values("mean_abs_shap", ascending=True)
-                topk = feat_imp.tail(7)
+            st.warning('Lactate model is not loaded.')
 
-                # Global importance
-                fig, ax = plt.subplots(figsize=(7,4))
-                ax.barh(topk["feature", '💓 HR Slope Trends'], topk["mean_abs_shap", '💓 HR Slope Trends'], color="#1f77b4", alpha=0.85)
-                ax.set_xlabel("Mean |SHAP value|")
-                ax.set_title("Top global features (SHAP)", fontweight="bold")
-                st.pyplot(fig)
-
-                # Per-sample SHAP (last window)
-                st.subheader("Per-Sample SHAP (Last Window)")
-                last_idx = -1
-                last_shap = shap_values[last_idx, '💓 HR Slope Trends'] if len(shap_values.shape)==2 else shap_values[0, '💓 HR Slope Trends'][last_idx, '💓 HR Slope Trends']
-                feats = np.array(X_shap.columns)
-                order = np.argsort(np.abs(last_shap))
-                vals = last_shap[order, '💓 HR Slope Trends']
-                feats_sorted = feats[order, '💓 HR Slope Trends']
-                colors = np.where(vals>0, "#2ca02c", "#d62728")
-                fig2, ax2 = plt.subplots(figsize=(7,4))
-                ax2.barh(feats_sorted, vals, color=colors, alpha=0.85)
-                ax2.set_xlabel("SHAP value (impact on prediction)")
-                ax2.set_title("Feature impact on last prediction", fontweight="bold")
-                st.pyplot(fig2)
-
-# Add live SHAP caption
-st.markdown(
-    """
-    <div style="text-align:center; font-size:14px; color:#444;">
-    💡 <b>SHAP</b> (<i>SHapley Additive exPlanations</i>) shows how each feature — 
-    like power or heart rate — pushes your predicted lactate up or down, 
-    making the AI’s decision fully transparent.
-    </div>
-    """, unsafe_allow_html=True)
-
-
-                st.caption("Green bars increase the prediction; red bars decrease it. Length indicates strength of influence for the last window.")
-
-            except Exception as e:
-                st.error(f"SHAP computation failed: {e}")
-
-st.markdown("---")
-st.write("Notes: Demo with global and per-sample SHAP visualizations. Use training notebook to create `model.joblib` and `sample_live.csv`.")
-
-
-import plotly.graph_objects as go
-
-with tabs[3]:
-    st.subheader("💓 HR Slope Trends")
-    st.markdown("""
-    **What it shows:**  
-    The **heart rate slope** reveals how fast heart rate rises with effort.  
-    A **steep slope** suggests fatigue or nearing lactate threshold, while a **flat slope** indicates good aerobic efficiency.
-    """)
-
-    if 'time' in df.columns and 'heart_rate' in df.columns:
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=df['time'], y=df['heart_rate'], mode='lines', name='Heart Rate (bpm)', line=dict(color='red')))
-        if 'hr_slope_time' in df.columns:
-            fig.add_trace(go.Scatter(x=df['time'], y=df['hr_slope_time'] * 10 + df['heart_rate'].mean(),
-                                     mode='lines', name='HR Slope (scaled)', line=dict(color='blue')))
-        if 'power' in df.columns:
-            fig.add_trace(go.Scatter(x=df['time'], y=df['power'] / df['power'].max() * 50 + df['heart_rate'].min(),
-                                     mode='lines', name='Power (scaled)', line=dict(color='green', dash='dot')))
-        fig.update_layout(
-            title='Heart Rate Slope Trends (Interactive)',
-            xaxis_title='Time (s)',
-            yaxis_title='Relative Value',
-            hovermode='x unified',
-            template='plotly_white',
-            height=500
-        )
-        st.plotly_chart(fig, use_container_width=True)
+# ===========================================================
+# 📊 SHAP Insights
+# ===========================================================
+with tab2:
+    st.subheader('📊 Model Explainability (SHAP)')
+    if uploaded is None and not use_synth:
+        st.info('Upload a CSV or generate demo data in the sidebar to view SHAP insights.')
+    elif lactate_model is None:
+        st.warning('Lactate model not loaded.')
     else:
-        st.warning("Heart rate data not found. Please load a valid session.")
+        # Reuse X from Live Session section if available
+        try:
+            sample_n = min(300, len(X))
+        except Exception:
+            st.info('Compute features in Live Session first.')
+            sample_n = 0
+        if sample_n >= 10:
+            X_sample = X.tail(sample_n)
+            with st.spinner('Computing SHAP global importance...'):
+                try:
+                    shap_values = get_shap_summary(lactate_model, X_sample, top_n=12, show=False)
+                    # Build a simple Plotly bar from mean |SHAP|
+                    mean_abs = np.abs(shap_values.values).mean(axis=0)
+                    sort_idx = np.argsort(mean_abs)[::-1][:12]
+                    top_feats = [X_sample.columns[i] for i in sort_idx]
+                    top_vals = [mean_abs[i] for i in sort_idx]
+                    fig_bar = px.bar(x=top_feats, y=top_vals, title='Global Feature Importance (mean |SHAP|)')
+                    fig_bar.update_layout(xaxis_title='Feature', yaxis_title='Importance', xaxis_tickangle=45, margin=dict(l=10,r=10,t=40,b=120))
+                    st.plotly_chart(fig_bar, use_container_width=True)
+                except Exception as e:
+                    st.warning(f'SHAP summary failed: {e}')
+
+            # Per-sample 'waterfall-style' using bar deltas on the last row
+            st.markdown('**Per-sample explanation (latest window)**')
+            try:
+                last_row = X_sample.tail(1)
+                shap_last = get_shap_summary(lactate_model, last_row, top_n=12, show=False)
+                contrib = shap_last.values[0]
+                order = np.argsort(np.abs(contrib))[::-1][:10]
+                feats = last_row.columns[order]
+                vals = contrib[order]
+                fig_local = px.bar(x=feats, y=vals, title='Per-Sample SHAP Impact (last window)')
+                fig_local.update_layout(xaxis_title='Feature', yaxis_title='Impact on prediction', xaxis_tickangle=45, margin=dict(l=10,r=10,t=40,b=120))
+                st.plotly_chart(fig_local, use_container_width=True)
+            except Exception as e:
+                st.warning(f'Per-sample SHAP failed: {e}')
+
+# ===========================================================
+# 💓 HR Slope Trends
+# ===========================================================
+with tab3:
+    st.subheader('💓 Heart Rate Slope Trends')
+    if df_session is None:
+        st.info('Upload a CSV or generate demo data to view HR slope trends.')
+    else:
+        # Ensure minimal columns
+        df_plot = ensure_columns(df_session.copy(), ['time', 'hr', 'power'])
+        fig = plot_hr_slope_plotly(df_plot)
+        st.plotly_chart(fig, use_container_width=True)
+
+# ===========================================================
+# 🧬 Recovery Dashboard
+# ===========================================================
+with tab4:
+    st.subheader('🧬 Recovery Dashboard')
+    st.caption('Uses biomarker + wearable features to estimate readiness (0–100).')
+
+    # Option 1: User-provided biomarkers CSV
+    biomarkers_file = st.file_uploader('Upload biomarkers CSV (optional)', type=['csv'], key='biomarkers')
+    df_bio = None
+    if biomarkers_file is not None:
+        try:
+            df_bio = pd.read_csv(biomarkers_file)
+        except Exception as e:
+            st.error(f'Failed to read biomarkers CSV: {e}')
+
+    # Option 2: derive features from the session (if present)
+    if df_bio is None and df_session is not None:
+        # Merge session last values as a simple readiness proxy input
+        bio_input = pd.DataFrame({
+            'heart_rate': [df_session['hr'].tail(1).values[0] if 'hr' in df_session else 0],
+            'power': [df_session['power'].tail(1).values[0] if 'power' in df_session else 0],
+            'cadence': [df_session['cadence'].tail(1).values[0] if 'cadence' in df_session else 0],
+            'hr_slope_time': [np.gradient(df_session['hr'].tail(30)).mean() if 'hr' in df_session else 0],
+        })
+        df_bio = bio_input
+
+    if df_bio is not None and recovery_model is not None:
+        # Prepare features & predict
+        with st.spinner('Estimating recovery readiness...'):
+            Xr = df_bio.copy()
+            # Make sure numeric
+            for c in Xr.columns:
+                Xr[c] = pd.to_numeric(Xr[c], errors='coerce').fillna(0.0)
+            rec_pred = predict_recovery(recovery_model, Xr)[0]
+            time.sleep(0.2)
+        st.success('Recovery score computed ✅')
+
+        gc1, gc2 = st.columns([1,2])
+        with gc1:
+            st.plotly_chart(readiness_gauge(rec_pred), use_container_width=True)
+        with gc2:
+            st.write('**Inputs used:**')
+            st.dataframe(Xr, use_container_width=True)
+            if rec_pred >= 80:
+                st.success('🟢 High readiness — suitable for intense training.')
+            elif rec_pred >= 60:
+                st.warning('🟡 Moderate readiness — consider tempo/threshold.')
+            else:
+                st.error('🔴 Low readiness — prioritize recovery or easy aerobic work.')
+    else:
+        if recovery_model is None:
+            st.warning('Recovery model not loaded.')
+        else:
+            st.info('Upload a biomarkers CSV or provide a session to derive basic inputs.')

@@ -1,7 +1,80 @@
-# 🧠 AI-Lactate-Advisor
-
+# 🧠 AI-Lactate-Advisor — Quick Start
 **AI-Lactate-Advisor** is an AI-powered tool for endurance athletes and coaches.  
 It predicts lactate buildup and recovery readiness using wearable and biomarker data, with built-in model explainability via SHAP visualizations.
+A smart endurance-training assistant that predicts **blood lactate** and **recovery readiness** using athlete data and lab biomarkers.  
+Built for high-performance coaches and athletes who want **real-time metabolic insights**.
+
+---
+
+## 🚀 Get Started in 1 Minute
+
+1️⃣ **Clone the repo**
+```bash
+git clone https://github.com/indarss/AI-Lactate-Advisor.git
+cd AI-Lactate-Advisor
+```
+
+2️⃣ **Install dependencies**
+```bash
+pip install -r requirements.txt
+```
+
+3️⃣ **Run the Streamlit app**
+```bash
+streamlit run app.py
+```
+
+4️⃣ **To train models**
+Open the notebook:
+```
+notebooks/AI_Lactate_Training_AutoRetrain_Versioned_Changelog_Visual_Notes.ipynb
+```
+Run all cells in **Google Colab** to:
+- Detect and merge new lab datasets  
+- Retrain models only if needed  
+- Log results and metrics  
+- Sync updates to GitHub automatically  
+
+---
+
+## 📊 Real-Time Insights
+
+- **AI Lactate Prediction** — instant lactate-level feedback from wearable data  
+- **Recovery Score** — integrates blood biomarkers + training load  
+- **SHAP Visuals** — transparent model explanations  
+- **Trend Dashboard** — see R² and MAE evolution over time  
+
+---
+
+## 🧾 Model Versioning
+
+Every retrain creates timestamped models:
+```
+models/lactate_lightgbm_model_YYYY_MM_DD_HHMM.joblib
+models/recovery_lightgbm_model_YYYY_MM_DD_HHMM.joblib
+```
+and records metadata in:
+```
+data/model_changelog.csv
+```
+
+---
+
+## ☁️ Deploy on Streamlit Cloud
+
+1. Push your repo to GitHub  
+2. In Streamlit Cloud → “New app” → choose this repo  
+3. Path: `app.py`  
+4. Add secret: `GITHUB_TOKEN` = _your GitHub PAT_  
+5. Deploy ✅  
+
+---
+
+## 🧬 Contact & License
+
+Developed by **Indars and team**.  
+To use or extend this project, contact 📧 `sparnins@hotmail.com`.  
+All rights reserved © 2025.
 
 ---
 
@@ -74,26 +147,6 @@ AI-Lactate-Advisor/
 
 ---
 
-## 🧩 Setup and Usage
-
-### 1️⃣ Clone the repository
-```bash
-git clone https://github.com/indarss/AI-Lactate-Advisor.git
-cd AI-Lactate-Advisor
-```
-
-### 2️⃣ Install dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 3️⃣ Run the app
-```bash
-streamlit run app.py
-```
-
----
-
 ## 🔐 GitHub Token Setup
 
 1. Go to [GitHub → Settings → Developer settings → Personal Access Tokens](https://github.com/settings/tokens)
@@ -120,3 +173,4 @@ streamlit run app.py
 
 Developed by **Indars**  
 AI-driven performance insights for endurance athletes.
+
