@@ -1,176 +1,140 @@
-# 🧠 AI-Lactate-Advisor — Quick Start
-**AI-Lactate-Advisor** is an AI-powered tool for endurance athletes and coaches.  
-It predicts lactate buildup and recovery readiness using wearable and biomarker data, with built-in model explainability via SHAP visualizations.
-A smart endurance-training assistant that predicts **blood lactate** and **recovery readiness** using athlete data and lab biomarkers.  
-Built for high-performance coaches and athletes who want **real-time metabolic insights**.
+# 🧠 AI Lactate Advisor
+[![Model Utilities Test](https://github.com/indarss/AI-Lactate-Advisor/actions/workflows/test_utils.yml/badge.svg)](https://github.com/indarss/AI-Lactate-Advisor/actions/workflows/test_utils.yml)
+
+**AI-Lactate-Advisor** is an AI-powered assistant for endurance athletes and coaches.  
+It predicts **blood lactate** and **recovery readiness** using wearable and lab data — enhanced with **explainable AI** (SHAP) to make insights transparent and actionable.
 
 ---
 
-## 🚀 Get Started in 1 Minute
+## 🚀 Quick Start
 
-1️⃣ **Clone the repo**
+### 1️⃣ Clone and Setup
 ```bash
 git clone https://github.com/indarss/AI-Lactate-Advisor.git
 cd AI-Lactate-Advisor
-```
-
-2️⃣ **Install dependencies**
-```bash
 pip install -r requirements.txt
 ```
 
-3️⃣ **Run the Streamlit app**
+### 2️⃣ Run the Streamlit App
 ```bash
 streamlit run app.py
 ```
 
-4️⃣ **To train models**
-Open the notebook:
+### 3️⃣ (Optional) Train or Update Models
+Open in **Google Colab**:
 ```
-notebooks/AI_Lactate_Training_AutoRetrain_Versioned_Changelog_Visual_Notes.ipynb
+notebooks/AI_Lactate_Training_AutoRetrain_Versioned.ipynb
 ```
-Run all cells in **Google Colab** to:
-- Detect and merge new lab datasets  
-- Retrain models only if needed  
-- Log results and metrics  
-- Sync updates to GitHub automatically  
+This notebook:
+- Detects & merges new lab data  
+- Retrains only if needed  
+- Logs metrics and updates GitHub automatically  
 
 ---
 
-## 📊 Real-Time Insights
+## 📊 Core Features
 
-- **AI Lactate Prediction** — instant lactate-level feedback from wearable data  
-- **Recovery Score** — integrates blood biomarkers + training load  
-- **SHAP Visuals** — transparent model explanations  
-- **Trend Dashboard** — see R² and MAE evolution over time  
-
----
-
-## 🧾 Model Versioning
-
-Every retrain creates timestamped models:
-```
-models/lactate_lightgbm_model_YYYY_MM_DD_HHMM.joblib
-models/recovery_lightgbm_model_YYYY_MM_DD_HHMM.joblib
-```
-and records metadata in:
-```
-data/model_changelog.csv
-```
+| Feature | Description |
+|----------|--------------|
+| 🩸 **Lactate Model** | Predicts lactate buildup from HR, power, and pace signals |
+| 🧬 **Recovery Model** | Estimates readiness score (0–100) using biomarkers |
+| 💡 **Explainability** | SHAP visualizations to interpret every prediction |
+| 💓 **Trend Dashboard** | Live HR slope and power trends with Plotly |
+| ☁️ **Streamlit Cloud App** | Real-time interactive dashboard |
+| 🔁 **Auto Model Versioning** | Saves timestamped `.joblib` models with changelog |
+| ⚙️ **CI Testing** | GitHub Actions badge validates model utils & SHAP logic |
 
 ---
 
-## ☁️ Deploy on Streamlit Cloud
+## 🧠 Understanding SHAP Visuals
 
-1. Push your repo to GitHub  
-2. In Streamlit Cloud → “New app” → choose this repo  
-3. Path: `app.py`  
-4. Add secret: `GITHUB_TOKEN` = _your GitHub PAT_  
-5. Deploy ✅  
+### 1. Global SHAP Importance
+Shows the features that most influence lactate prediction.
+- Longer bars = stronger global impact.
+- Example: high *power_mean_30s* means intensity drives lactate buildup.
 
----
+### 2. Per-Sample SHAP Impact
+Explains the **latest prediction window**.
+- 🟩 Green → Increases lactate (fatigue signal)  
+- 🟥 Red → Reduces lactate (recovery trend)
 
-## 🧬 Contact & License
-
-Developed by **Indars and team**.  
-To use or extend this project, contact 📧 `sparnins@hotmail.com`.  
-All rights reserved © 2025.
-
----
-
-## 🧠 Understanding the SHAP Visuals
-
-**What you’re seeing:**
-
-1. **Global SHAP Importance (Top Chart)**
-   - Shows which physiological or performance features (like *power, HR, slope of HR*) have the **strongest average influence** on lactate prediction across all sessions.
-   - The longer the bar, the more the model relies on that signal to understand your metabolic state.
-   - *Example:* “Power_mean_30s” being dominant means the model strongly associates recent power output with lactate build-up.
-
-2. **Per-Sample SHAP Impact (Bottom Chart)**
-   - Explains the model’s decision for the **latest window** of data.
-   - **Green bars** = factors that **increase** predicted lactate (push toward fatigue).
-   - **Red bars** = factors that **reduce** predicted lactate (indicate recovery or aerobic stability).
-   - The **bar length** shows *how much* each feature contributes — longer = stronger effect.
-   - *Example:* A large green “HR_slope_30s” bar means a rapidly rising HR is pushing lactate prediction upward — the athlete is nearing threshold.
-
-3. **Interpretation for coaches:**
-   - Quickly identify *why* the athlete’s lactate rose — was it power, HR drift, or instability?
-   - Use it to adjust pacing or recovery cues in real time.
-   - It turns a “black box” AI into a **transparent assistant** explaining its reasoning.
+### 3. Coaching Use
+Instantly see *why* lactate rose — due to HR drift, power, or instability.  
+Helps optimize pacing, intervals, and recovery.
 
 ---
 
 ## 🧬 Recovery Dashboard
 
-The **Recovery Dashboard** extends the AI Lactate Advisor beyond momentary fatigue analysis.
-It uses **lab biomarkers** (CK, Cortisol, T/C ratio, hsCRP, Glucose, RBC) and **wearable data**
-to predict an athlete's *readiness score (0–100)* for optimal training timing.
+Predicts **readiness** (0–100) combining biomarkers and load metrics.
 
-- **80–100** → 🟢 Fully recovered, safe for high-intensity sessions  
-- **60–80** → 🟡 Moderately recovered, active recovery recommended  
-- **Below 60** → 🔴 Rest advised before next major workout  
-
-This feature integrates both **real-time physiological trends** and **biochemical recovery data** to form a holistic readiness indicator.
+| Score | Status | Recommendation |
+|-------|---------|----------------|
+| 🟢 80–100 | Fully recovered | Safe for intensity |
+| 🟡 60–80 | Moderate | Active recovery |
+| 🔴 <60 | Fatigued | Rest advised |
 
 ---
 
-## 🚀 Features
+## 🗂️ Repository Layout
 
-- 🩸 **Lactate Model** — Predicts lactate concentration from wearable data  
-- 🧬 **Recovery Model** — Estimates recovery score using biomarkers  
-- 💡 **Explainability** — SHAP visualizations to interpret model decisions  
-- ☁️ **Streamlit Cloud App** — Interactive dashboard  
-- 🔁 **Auto-GitHub Sync** — Automatically uploads trained models  
-- 🔄 **Streamlit Redeploy Trigger** — Automatically refreshes the app  
-
----
-
-## 🗂️ Repository Structure
 ```
 AI-Lactate-Advisor/
 ├── app.py
-├── README.md
-├── requirements.txt
+├── model_utils.py
 ├── models/
 │   ├── lactate_lightgbm_model.joblib
-│   └── recovery_lightgbm_model.joblib
-├── data/
-│   ├── athlete_training_dataset_1000.csv
-│   └── athlete_training_dataset_with_biomarkers.csv
-├── assets/
-│   ├── logo.png
-│   └── favicon.png
+│   ├── recovery_lightgbm_model.joblib
 ├── notebooks/
-│   └── AI_Lactate_Training_Complete_Merged.ipynb
+│   ├── AI_Lactate_Training_AutoRetrain_Versioned.ipynb
+├── tests/
+│   ├── test_model_utils.ipynb
+│   └── README.md
+└── .github/
+    └── workflows/
+        └── test_utils.yml
 ```
 
 ---
 
-## 🔐 GitHub Token Setup
+## ☁️ Deployment (Streamlit Cloud)
 
-1. Go to [GitHub → Settings → Developer settings → Personal Access Tokens](https://github.com/settings/tokens)
-2. Generate a **fine-grained token** for this repo with **Read/Write Contents** access
-3. In **Google Colab**, go to:
-   **Runtime → Manage sessions → Secrets → New Secret**
-   ```
-   Name: GITHUB_TOKEN
-   Value: <your_personal_access_token>
-   ```
+1. Push repo to GitHub  
+2. Go to [streamlit.io/cloud](https://streamlit.io/cloud) → *New App*  
+3. Select this repo and path `app.py`  
+4. Add `GITHUB_TOKEN` secret (fine-grained PAT with Read/Write Contents)  
+5. Click **Deploy** ✅  
 
 ---
 
-## ☁️ Streamlit Deployment
+## 🧪 Continuous Integration
 
-1. Visit [streamlit.io/cloud](https://streamlit.io/cloud)
-2. Choose **New app → From GitHub**
-3. Set main file path as `app.py`
-4. Add secret `GITHUB_TOKEN` in the Streamlit Cloud secrets panel
+Every commit triggers automatic testing via **GitHub Actions**:  
+- Executes `test_model_utils.ipynb`  
+- Verifies rolling stats, SHAP caching, and slope logic  
+- Uploads result notebook as artifact  
+
+You can view results under the **Actions** tab or check the badge at the top of this README.
 
 ---
 
-## 💬 Credits
+## 🧭 Future Enhancements
 
-Developed by **Indars**  
-AI-driven performance insights for endurance athletes.
+These planned improvements will make **AI Lactate Advisor** even more powerful and practical for real-world sports environments:
 
+| Area | Planned Feature | Description |
+|------|------------------|--------------|
+| ⌚ **Wearable Sync** | Real-time Bluetooth/ANT+ integration | Connects directly to heart rate monitors, power meters, or Garmin/Wahoo devices |
+| 🤖 **Personalized Thresholds** | Adaptive lactate threshold model | Learns each athlete’s unique HR–power–lactate profile over time |
+| ☁️ **Cloud Database** | Historical training and biomarker tracking | Enables long-term athlete profiling and overtraining alerts |
+| 🧠 **AI Coaching Assistant** | Voice/chat-based feedback loop | Provides instant recovery or pacing guidance during workouts |
+| 🧪 **Advanced Biomarkers** | Integrate new lab metrics | Add hormone, glucose, and HRV correlation for precision recovery readiness |
+| 📈 **Performance Insights Dashboard** | Weekly summary trends | Auto-generated reports for coaches and teams |
+
+---
+
+## 💬 Author & License
+
+Developed by **Indars Sparniņš** and team.  
+📧 Contact: **sparnins@hotmail.com**  
+All rights reserved © 2025 AI Lactate Advisor.
