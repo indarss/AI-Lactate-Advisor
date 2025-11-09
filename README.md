@@ -1,8 +1,11 @@
-README_SHAP.txt
-====================
+# 🧠 AI-Lactate-Advisor
 
-🧠 Understanding the SHAP Visuals
----------------------------------
+**AI-Lactate-Advisor** is an AI-powered tool for endurance athletes and coaches.  
+It predicts lactate buildup and recovery readiness using wearable and biomarker data, with built-in model explainability via SHAP visualizations.
+
+---
+
+## 🧠 Understanding the SHAP Visuals
 
 **What you’re seeing:**
 
@@ -23,9 +26,6 @@ README_SHAP.txt
    - Use it to adjust pacing or recovery cues in real time.
    - It turns a “black box” AI into a **transparent assistant** explaining its reasoning.
 
----------------------------------
-Add this explanation to your hackathon presentation so coaches and judges can easily understand how AI interprets athlete physiology.
-
 ---
 
 ## 🧬 Recovery Dashboard
@@ -39,3 +39,84 @@ to predict an athlete's *readiness score (0–100)* for optimal training timing.
 - **Below 60** → 🔴 Rest advised before next major workout  
 
 This feature integrates both **real-time physiological trends** and **biochemical recovery data** to form a holistic readiness indicator.
+
+---
+
+## 🚀 Features
+
+- 🩸 **Lactate Model** — Predicts lactate concentration from wearable data  
+- 🧬 **Recovery Model** — Estimates recovery score using biomarkers  
+- 💡 **Explainability** — SHAP visualizations to interpret model decisions  
+- ☁️ **Streamlit Cloud App** — Interactive dashboard  
+- 🔁 **Auto-GitHub Sync** — Automatically uploads trained models  
+- 🔄 **Streamlit Redeploy Trigger** — Automatically refreshes the app  
+
+---
+
+## 🗂️ Repository Structure
+```
+AI-Lactate-Advisor/
+├── app.py
+├── README.md
+├── requirements.txt
+├── models/
+│   ├── lactate_lightgbm_model.joblib
+│   └── recovery_lightgbm_model.joblib
+├── data/
+│   ├── athlete_training_dataset_1000.csv
+│   └── athlete_training_dataset_with_biomarkers.csv
+├── assets/
+│   ├── logo.png
+│   └── favicon.png
+├── notebooks/
+│   └── AI_Lactate_Training_Complete_Merged.ipynb
+```
+
+---
+
+## 🧩 Setup and Usage
+
+### 1️⃣ Clone the repository
+```bash
+git clone https://github.com/indarss/AI-Lactate-Advisor.git
+cd AI-Lactate-Advisor
+```
+
+### 2️⃣ Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 3️⃣ Run the app
+```bash
+streamlit run app.py
+```
+
+---
+
+## 🔐 GitHub Token Setup
+
+1. Go to [GitHub → Settings → Developer settings → Personal Access Tokens](https://github.com/settings/tokens)
+2. Generate a **fine-grained token** for this repo with **Read/Write Contents** access
+3. In **Google Colab**, go to:
+   **Runtime → Manage sessions → Secrets → New Secret**
+   ```
+   Name: GITHUB_TOKEN
+   Value: <your_personal_access_token>
+   ```
+
+---
+
+## ☁️ Streamlit Deployment
+
+1. Visit [streamlit.io/cloud](https://streamlit.io/cloud)
+2. Choose **New app → From GitHub**
+3. Set main file path as `app.py`
+4. Add secret `GITHUB_TOKEN` in the Streamlit Cloud secrets panel
+
+---
+
+## 💬 Credits
+
+Developed by **Indars**  
+AI-driven performance insights for endurance athletes.

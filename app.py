@@ -5,7 +5,17 @@ import joblib
 import time
 import matplotlib.pyplot as plt
 import shap
-from model_utils import make_features
+from model_utils import (
+    make_features,
+    load_model, prepare_features,
+    predict_lactate, predict_recovery,
+    get_shap_summary, smooth_series
+)
+
+# Load trained models
+lactate_model = load_model("models/lactate_lightgbm_model.joblib")
+recovery_model = load_model("models/recovery_lightgbm_model.joblib")
+
 
 # Matplotlib styling for nicer visuals
 plt.rcParams.update({
