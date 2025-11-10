@@ -169,3 +169,33 @@ It introduces dynamic Polar API integration, mock data simulation, and upload-ba
 Developed by **Indars Sparniņš** and team.  
 📧 Contact: **sparnins@hotmail.com**  
 All rights reserved © 2025 AI Lactate Advisor.
+
+---
+
+## 🧬 Data Visualization Tools
+
+To help athletes, coaches, and analysts better understand physiological recovery patterns, we provide a visualization notebook using **synthetic or real biomarker datasets**.
+
+### 📓 Notebook: `plot_sample_biomarkers.ipynb`
+This notebook demonstrates how to visualize biomarker–recovery interactions from the AI Lactate Advisor dataset.
+
+**Features:**
+- Auto-loads `athlete_training_dataset_with_biomarkers_SAMPLE.csv`
+- Static and interactive visualizations:
+  - CK, Cortisol, and Recovery trends over time  
+  - Recovery vs Cortisol & CK scatter relationship  
+  - Correlation heatmap between biomarkers and recovery score  
+- Generates **interactive Plotly HTML files** in `/content/plots/` for sharing or embedding.
+
+**How to Run:**
+1. Open the notebook in **Google Colab** or Jupyter.
+2. Upload or link your dataset in `data/`.
+3. Run all cells — you’ll see inline Matplotlib plots and exported interactive Plotly dashboards.
+4. Use generated charts to explore how different biomarkers influence athlete recovery.
+
+**Example Output:**
+```
+✅ Saved interactive plot to /content/plots/ck_cortisol_recovery.html
+✅ Saved interactive plot to /content/plots/recovery_vs_cortisol_ck.html
+✅ Saved interactive plot to /content/plots/correlation_heatmap.html
+```
