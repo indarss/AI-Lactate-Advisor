@@ -133,6 +133,37 @@ These planned improvements will make **AI Lactate Advisor** even more powerful a
 
 ---
 
+
+
+---
+
+## 🆕 Live Mode – Real-Time Wearable Data Streaming
+
+The **Live Mode** tab extends the AI Lactate Advisor from static datasets to **real-time streaming** and **connected wearable analytics**.  
+It introduces dynamic Polar API integration, mock data simulation, and upload-based session analysis.
+
+### 🔗 Features:
+- **Polar OAuth2 Integration** – authenticate and securely pull HR, power, and pace data from your Polar account.  
+- **Mock Stream Mode** – simulate wearable telemetry in real time to demo or test AI predictions without devices.  
+- **Upload CSV/TCX** – analyze exported workout files for lactate and recovery prediction.  
+- **Plotly Live Charts** – interactive, dual-axis charts overlaying heart rate, power, and predicted lactate in real time.  
+
+### 🧩 Technical Flow:
+1. Authenticate with Polar or use the built-in Mock Stream.
+2. Stream incoming HR/power data into the `make_features()` pipeline.
+3. Model predicts **instantaneous lactate** and **recovery trend**.
+4. Streamlit renders results via Plotly with millisecond responsiveness.
+
+### 💻 Code Integration:
+- The new **`_render_live_mode_tab()`** function is automatically loaded with the app.
+- Models are reused (`lactate_lightgbm_model.joblib`, `recovery_lightgbm_model.joblib`) or gracefully skipped if missing.
+- Fallback logic ensures the app remains stable even if no wearable or model files are present.
+
+### 🖼️ Architecture Diagram
+![Wearable to AI Pipeline](A_flowchart_diagram_illustrates_the_integration_pr.png)
+*Figure: End-to-end wearable data to AI prediction workflow.*
+
+
 ## 💬 Author & License
 
 Developed by **Indars Sparniņš** and team.  
