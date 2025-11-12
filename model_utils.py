@@ -114,3 +114,92 @@ def get_shap_summary(model, X: pd.DataFrame, top_n: int = 10, show: bool = False
 def smooth_series(series, window=5):
     """Simple moving average smoothing for chart display."""
     return series.rolling(window=window, min_periods=1).mean()
+
+from datetime import datetime
+from lightgbm import LGBMRegressor
+from sklearn.metrics import r2_score, mean_absolute_error
+
+def train_lightgbm(X_train, y_train, X_val=None, y_val=None, params=None,
+                   model_dir="models", model_name="lactate_lightgbm_model",
+                   github_repo="AI-Lactate-Advisor", github_user="indarss"):
+    """
+    Train and version a LightGBM regression model.
+    Automatically saves model with version timestamp, evaluates metrics,
+    and returns the trained model.
+    """
+
+    os.makedirs(model_dir, exist_ok=True)
+
+    # Default model hyperparameters
+    if params is None:
+        params = {
+            "n_estimators": 400,
+            "learning_rate": 0.05,
+            "num_leaves": 31,
+            "subsample": 0.8,
+            "colsample_bytree": 0.8,
+            "random_state": 42
+        }
+
+    print(f"🚀 Training {model_name} ...")
+    model = LGBMRegressor(**params)
+    model.fit(X_train, y_train)
+
+    # Evaluate if validation data provided
+    if X_val is not None and y_val is not None:
+        y_pred = model.predict(X_val)
+        r2 = r2_score(y_val, y_pred)
+        mae = mean_absolute_error(y_val, y_pred)
+        print(f"✅ Validation R² = {r2:.3f}, MAE = {mae:.3f}")
+    else:
+        print("⚠️ No validation data provided. Skipping evaluation.")
+
+ # --- Embed feature schema for downstream use ---
+    model.feature_names_in_ = list(X_train.columns)
+    model_metadata = {
+        "model": model,
+        "features": list(X_train.columns),
+        "trained_on": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "model_name": model_name
+    }
+    
+    # --- Save versioned and latest model ---
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    versioned_path = os.path.join(model_dir, f"{model_name}_{timestamp}.joblib")
+    latest_path = os.path.join(model_dir, f"{model_name}.joblib")
+
+    joblib.dump(model, versioned_path)
+    joblib.dump(model, latest_path)
+
+    print(f"💾 Model saved as:")
+    print(f"   ┣━ {versioned_path}")
+    print(f"   ┗━ {latest_path}")
+
+   # --- Optional GitHub upload ---
+    token = os.getenv("GITHUB_TOKEN")
+    if token:
+        try:
+            from github import Github
+            g = Github(token)
+            repo = g.get_user().get_repo(github_repo)
+
+            def upload_or_update(local_path, remote_path, message):
+                with open(local_path, "rb") as f:
+                    content = f.read()
+                try:
+                    existing = repo.get_contents(remote_path)
+                    repo.update_file(existing.path, message, content, existing.sha, branch="main")
+                    print(f"✅ Updated on GitHub: {remote_path}")
+                except Exception:
+                    repo.create_file(remote_path, message, content, branch="main")
+                    print(f"✅ Uploaded to GitHub: {remote_path}")
+
+            upload_or_update(latest_path, f"models/{model_name}.joblib", f"Auto-update: {model_name}")
+            upload_or_update(versioned_path, f"models/{model_name}_{timestamp}.joblib", f"Auto-version: {model_name}")
+            print("🌐 GitHub upload complete.")
+        except Exception as e:
+            print(f"⚠️ GitHub upload failed: {e}")
+    else:
+        print("⚠️ GITHUB_TOKEN not found — skipping GitHub upload.")
+
+    return model

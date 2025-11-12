@@ -67,6 +67,13 @@ def ensure_columns(df: pd.DataFrame, required_cols):
             df[c] = 0.0
     return df
 
+def align_features(df, feature_list):
+    """Align incoming dataframe columns to model's expected schema."""
+    if feature_list is None:
+        return df
+    return df.reindex(columns=feature_list, fill_value=0)
+
+
 def plot_hr_slope_plotly(df: pd.DataFrame):
     # Interactive Plotly HR slope trends (HR, Power, and HR slope).
     df = df.copy()
@@ -115,6 +122,66 @@ def readiness_gauge(score: float):
     fig.update_layout(height=260, margin=dict(l=10, r=10, t=30, b=10))
     return fig
 
+def plot_3d_lactate_zones(df: pd.DataFrame, y_pred: np.ndarray):
+    """
+    Plot animated 3D lactate visualization with color zones:
+    Blue=Low Aerobic, Orange=Threshold, Red=Anaerobic.
+    """
+    import plotly.graph_objects as go
+
+    df = df.copy()
+    if 'time' not in df.columns or 'power' not in df.columns or 'hr' not in df.columns:
+        st.warning("Missing required columns for 3D visualization (time, power, hr).")
+        return
+
+    df['pred_lactate'] = y_pred
+
+    # Define zone colors
+    zone_colors = [
+        (0, '#1f77b4'),  # Blue: aerobic
+        (2, '#ff7f0e'),  # Orange: threshold
+        (4, '#d62728')   # Red: anaerobic
+    ]
+
+    fig = go.Figure()
+
+    # Main animated scatter
+    fig.add_trace(go.Scatter3d(
+        x=df['time'], y=df['power'], z=df['hr'],
+        mode='markers',
+        marker=dict(
+            size=np.clip(df['pred_lactate'], 3, 12),
+            color=df['pred_lactate'],
+            colorscale=[(0, '#1f77b4'), (0.5, '#ff7f0e'), (1, '#d62728')],
+            cmin=df['pred_lactate'].min(),
+            cmax=df['pred_lactate'].max(),
+            colorbar=dict(title='Pred. Lactate (mmol/L)')
+        ),
+        name='Athlete Path'
+    ))
+
+    # Add horizontal colored “zone” bands
+    for z, color in zone_colors:
+        fig.add_trace(go.Mesh3d(
+            x=[df['time'].min(), df['time'].max(), df['time'].max(), df['time'].min()],
+            y=[df['power'].min(), df['power'].min(), df['power'].max(), df['power'].max()],
+            z=[df['hr'].mean()+z]*4,
+            color=color, opacity=0.1,
+            name=f"Zone {z}"
+        ))
+
+    fig.update_layout(
+        title="🎨 3D Lactate Zone Visualization",
+        scene=dict(
+            xaxis_title='Time (s)',
+            yaxis_title='Power (W)',
+            zaxis_title='Heart Rate (bpm)',
+        ),
+        margin=dict(l=0, r=0, t=40, b=0)
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
 # -----------------------------
 # Sidebar
 # -----------------------------
@@ -143,7 +210,34 @@ if models_present:
     try:
         with st.spinner('Loading models...'):
             lactate_model, recovery_model = _load_models()
-            time.sleep(0.2)
+        # --- Feature alignment safeguard for both models ---
+        import joblib
+        def _extract_schema(model_obj):
+            if isinstance(model_obj, dict) and "features" in model_obj:
+                return model_obj["features"], model_obj["model"]
+            return None, model_obj
+
+        # Reload models to extract embedded schema if available
+        try:
+            lm_obj = joblib.load(LACTATE_MODEL_PATH)
+            lactate_features, lactate_model = _extract_schema(lm_obj)
+        except Exception:
+            lactate_features = None
+
+        try:
+            rm_obj = joblib.load(RECOVERY_MODEL_PATH)
+            recovery_features, recovery_model = _extract_schema(rm_obj)
+        except Exception:
+            recovery_features = None
+
+        st.session_state["lactate_features"] = lactate_features
+        st.session_state["recovery_features"] = recovery_features
+
+        if lactate_features:
+            st.info(f"Lactate model expects {len(lactate_features)} features.")
+        if recovery_features:
+            st.info(f"Recovery model expects {len(recovery_features)} features.")
+
         st.success('Models loaded.')
     except Exception as e:
         st.error(f'Failed to load models: {e}')
@@ -191,22 +285,44 @@ with tab1:
         # Predict lactate
         if lactate_model is not None:
             with st.spinner('Predicting lactate levels...'):
+                # Align incoming data to model’s expected features (if available)
+                if "lactate_features" in st.session_state and st.session_state["lactate_features"]:
+                    X = align_features(X, st.session_state["lactate_features"])
+                    st.caption(f"Aligned features: {len(st.session_state['lactate_features'])} columns.")
+                else:
+                    st.caption("Using raw feature columns (no schema found).")
+
                 y_pred = predict_lactate(lactate_model, X)
                 time.sleep(0.1)
+
             st.success('Lactate prediction complete ✅')
 
-            # Show last prediction
-            latest_pred = float(y_pred[-1]) if len(y_pred) else None
-            if latest_pred is not None:
-                colL, colR = st.columns([3,1])
-                with colL:
-                    fig_lp = px.line(x=df_session['time'], y=y_pred, labels={'x': 'Time (s)', 'y': 'Predicted Lactate (mmol/L)'},
-                                     title='Predicted Lactate Over Time')
-                    st.plotly_chart(fig_lp, use_container_width=True)
-                with colR:
-                    st.metric('Latest lactate', f'{latest_pred:.2f} mmol/L')
+
+        # Show last prediction
+        latest_pred = float(y_pred[-1]) if len(y_pred) else None
+        if latest_pred is not None:
+            colL, colR = st.columns([3,1])
+            with colL:
+                fig_lp = px.line(
+                    x=df_session['time'], y=y_pred,
+                    labels={'x': 'Time (s)', 'y': 'Predicted Lactate (mmol/L)'},
+                    title='Predicted Lactate Over Time'
+                )
+                st.plotly_chart(fig_lp, use_container_width=True)
+
+                # 🎨 3D Lactate Zone Visualization (new)
+                st.markdown("### 🎨 3D Lactate Zone Visualization")
+                st.caption("Blue = Aerobic · Orange = Threshold · Red = Anaerobic Zone")
+                plot_3d_lactate_zones(df_session, y_pred)
+
+            with colR:
+                st.metric('Latest lactate', f'{latest_pred:.2f} mmol/L')
+
         else:
             st.warning('Lactate model is not loaded.')
+
+        
+
 
 # ===========================================================
 # 📊 SHAP Insights
@@ -295,16 +411,26 @@ with tab4:
         })
         df_bio = bio_input
 
-    if df_bio is not None and recovery_model is not None:
-        # Prepare features & predict
-        with st.spinner('Estimating recovery readiness...'):
-            Xr = df_bio.copy()
-            # Make sure numeric
-            for c in Xr.columns:
-                Xr[c] = pd.to_numeric(Xr[c], errors='coerce').fillna(0.0)
-            rec_pred = predict_recovery(recovery_model, Xr)[0]
-            time.sleep(0.2)
+        if df_bio is not None and recovery_model is not None:
+            with st.spinner('Estimating recovery readiness...'):
+                Xr = df_bio.copy()
+
+                # Clean numeric values
+                for c in Xr.columns:
+                    Xr[c] = pd.to_numeric(Xr[c], errors='coerce').fillna(0.0)
+
+                # Align with model’s expected feature schema
+                if "recovery_features" in st.session_state and st.session_state["recovery_features"]:
+                    Xr = align_features(Xr, st.session_state["recovery_features"])
+                    st.caption(f"Aligned recovery input to {len(st.session_state['recovery_features'])} expected features.")
+                else:
+                    st.caption("Using raw biomarker features (no schema found).")
+
+                rec_pred = predict_recovery(recovery_model, Xr)[0]
+                time.sleep(0.2)
+
         st.success('Recovery score computed ✅')
+        st.markdown(f'### Estimated Recovery Readiness Score: **{rec_pred:.1f} / 100**')    
 
         gc1, gc2 = st.columns([1,2])
         with gc1:
