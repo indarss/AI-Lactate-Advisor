@@ -50,7 +50,7 @@ before deploying the AI Lactate Advisor app or retraining models.
 
 ## 📬 Maintainer Contact
 
-This project and supporting code are owned by **Indars Šparniņš**.  
+This project and supporting code are owned by **Indars Sparnins**.  
 For collaboration or reuse, please contact: **sparnins@hotmail.com**
 
 © 2025 AI Lactate Advisor | All rights reserved

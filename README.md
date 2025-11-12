@@ -76,6 +76,40 @@ Predicts **readiness** (0–100) combining biomarkers and load metrics.
 
 ---
 
+## 🧩 How the Recovery Index Works
+
+The **Recovery Index (0–100)** summarizes how ready or recovered an athlete is after a workout, blending **biochemical**, **physiological**, and **load-based** data into one clear score.
+
+| Range | Status | Meaning | Recommendation |
+|--------|--------|----------|----------------|
+| 🟢 **80–100** | High Recovery | Nervous and muscular systems fully recovered. | Safe for high-intensity or competition efforts. |
+| 🟡 **60–80** | Moderate Recovery | Mild residual fatigue; body still adapting. | Aerobic or endurance sessions recommended. |
+| 🟠 **40–60** | Low Recovery | Noticeable strain in biomarkers and HR trend. | Restrict to low-intensity or technique sessions. |
+| 🔴 **<40** | Poor Recovery | Elevated stress, insufficient regeneration. | Rest or active recovery only. |
+
+### ⚙️ How It’s Computed
+The recovery index combines key biomarker signals and model outputs:
+
+\\[
+\\text{Recovery Index} = 100 - (w_1 \\cdot CK_z + w_2 \\cdot Cortisol_z + w_3 \\cdot hsCRP_z - w_4 \\cdot T/C_z)
+\\]
+
+- **CK** – muscle damage indicator  
+- **Cortisol** – hormonal stress marker  
+- **hsCRP** – inflammation response  
+- **T/C Ratio** – anabolic vs catabolic balance  
+
+Each variable is normalized (z-scored) and weighted by its learned model importance.  
+The final value is clipped to **0–100**, making it intuitive and actionable.
+
+### 🧠 Interpretation Example
+> **Post-session Recovery Index: 78/100 (Moderate Recovery)**  
+> Indicates healthy adaptation but mild residual fatigue — athlete can train again within 12–18 hours at submaximal intensity.
+
+In essence, the Recovery Index translates complex biomarker trends into **a simple readiness metric** that coaches and athletes can track daily.
+
+---
+
 ## 🗂️ Repository Layout
 
 ```
@@ -162,6 +196,7 @@ It introduces dynamic Polar API integration, mock data simulation, and upload-ba
 ### 🖼️ Architecture Diagram
 ![Wearable to AI Pipeline](A_flowchart_diagram_illustrates_the_integration_pr.png)
 *Figure: End-to-end wearable data to AI prediction workflow.*
+
 
 
 ## 💬 Author & License
