@@ -180,7 +180,7 @@ def plot_3d_lactate_zones(df: pd.DataFrame, y_pred: np.ndarray):
         margin=dict(l=0, r=0, t=40, b=0)
     )
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='100%')
 
 # -----------------------------
 # Sidebar
@@ -413,28 +413,33 @@ with tab4:
         })
         df_bio = bio_input
 
-        if df_bio is not None and recovery_model is not None:
-            with st.spinner('Estimating recovery readiness...'):
-                Xr = df_bio.copy()
+    if df_bio is not None and recovery_model is not None:
+        with st.spinner('Estimating recovery readiness...'):
+            Xr = df_bio.copy()
 
-                # Clean numeric values
-                for c in Xr.columns:
-                    Xr[c] = pd.to_numeric(Xr[c], errors='coerce').fillna(0.0)
+            # Clean numeric values
+            for c in Xr.columns:
+                Xr[c] = pd.to_numeric(Xr[c], errors='coerce').fillna(0.0)
 
-                # Align with model’s expected feature schema
-                if "recovery_features" in st.session_state and st.session_state["recovery_features"]:
-                    Xr = align_features(Xr, st.session_state["recovery_features"])
-                    st.caption(f"Aligned recovery input to {len(st.session_state['recovery_features'])} expected features.")
-                else:
-                    st.caption("Using raw biomarker features (no schema found).")
+            # Align with model's expected feature schema
+            if "recovery_features" in st.session_state and st.session_state["recovery_features"]:
+                Xr = align_features(Xr, st.session_state["recovery_features"])
+                st.caption(f"Aligned recovery input to {len(st.session_state['recovery_features'])} expected features.")
+            else:
+                st.caption("Using raw biomarker features (no schema found).")
 
-                rec_pred = predict_recovery(recovery_model, Xr)[0]
-                time.sleep(0.2)
+            rec_pred = predict_recovery(recovery_model, Xr)
+            # Handle both single value and array returns
+            if isinstance(rec_pred, np.ndarray):
+                rec_pred = float(rec_pred[0]) if len(rec_pred) > 0 else 0.0
+            else:
+                rec_pred = float(rec_pred)
+            time.sleep(0.2)
 
         st.success('Recovery score computed ✅')
         st.markdown(f'### Estimated Recovery Readiness Score: **{rec_pred:.1f} / 100**')    
 
-        gc1, gc2 = st.columns([1,2])
+        gc1, gc2 = st.columns([1, 2])
         with gc1:
             st.plotly_chart(readiness_gauge(rec_pred), use_container_width=True)
         with gc2:
