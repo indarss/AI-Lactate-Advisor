@@ -165,7 +165,52 @@ These planned improvements will make **AI Lactate Advisor** even more powerful a
 | 📈 **Performance Insights Dashboard** | Weekly summary trends | Auto-generated reports for coaches and teams |
 
 ---
+## 🎛️ 3D Lactate Visualization (New Feature)
 
+The 3D Lactate Visualization tab provides an interactive, tri-dimensional view of the athlete’s physiological state during a workout.
+It helps athletes and coaches visually explore how heart rate, power, and predicted lactate interact in real time.
+
+📡 What It Shows
+
+The interactive 3D plot displays:
+X-axis: Power (W)
+Y-axis: Heart Rate (bpm)
+Z-axis: Predicted Lactate (mmol/L)
+
+Each point represents a moment in the session, color-coded by metabolic intensity:
+
+🟦 Blue — Aerobic (stable, low lactate)
+🟧 Orange — Threshold approaching (moderate lactate rise)
+🔴 Red — Anaerobic (rapid lactate accumulation)
+
+This lets users see not only when they approached threshold but how their physiological trajectory evolved.
+
+🔍 Why It’s Useful
+
+Traditional 2D plots show lactate OR power OR heart rate.
+This feature reveals the full metabolic landscape, enabling:
+
+📈 Identification of threshold “zones”
+🧭 Analysis of pacing strategies
+🔁 Detection of cardiac drift (HR rising while power stays constant)
+🧠 Understanding effort–lactate relationships visually
+🎓 Clear teaching/demonstration for coaches and judges
+
+It helps athletes understand why threshold was crossed, not just that it happened.
+
+The app:
+Computes rolling and slope features from wearable data
+Predicts lactate for each time window
+Builds a 3D Plotly scatter surface
+Applies metabolic zone colors
+Renders the plot in a fully rotatable, zoomable view inside Streamlit
+
+🚀 How to Use It
+
+Upload a session CSV or generate a synthetic demo under Live Session
+Open 🎛️ 3D Lactate Visualization
+Drag, rotate, zoom, and explore your metabolic profile
+Use it alongside SHAP and Recovery Dashboard for complete insight
 
 
 ---
