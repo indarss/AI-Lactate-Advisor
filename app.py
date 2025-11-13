@@ -256,12 +256,14 @@ else:
 # -----------------------------
 # Tabs
 # -----------------------------
-tab1, tab2, tab3, tab4, tab_live = st.tabs([
+tab1, tab2, tab3, tab4, tab_live, tab_3d = st.tabs([
     '🏃 Live Session',
     '📊 SHAP Insights',
     '💓 HR Slope Trends',
-    '🧬 Recovery Dashboard'
-, '💓 Live Mode'])
+    '🧬 Recovery Dashboard',
+    '💓 Live Mode',
+    '🎛️ 3D Lactate Visualization'
+])
 
 # ===========================================================
 # 🏃 Live Session
@@ -647,3 +649,87 @@ def _render_live_mode_tab():
 # Bind Live Mode tab
 with tab_live:
     _render_live_mode_tab()
+
+
+# ===========================================================
+# 🎛️ 3D Lactate Visualization
+# ===========================================================
+with tab_3d:
+    st.subheader("🎛️ 3D Lactate Visualization")
+    st.caption("Explore HR, Power, and Predicted Lactate in a 3D interactive plot.")
+
+    if df_session is None:
+        st.info("Upload a session CSV or generate sample data to view 3D visualization.")
+    elif lactate_model is None:
+        st.warning("Lactate model not loaded.")
+    else:
+        # Prepare features again
+        df_viz = df_session.copy()
+        df_viz = ensure_columns(df_viz, ['time', 'power', 'hr'])
+        df_viz = add_hr_slopes(df_viz.rename(columns={'hr':'heart_rate'}))
+        df_viz = add_rolling_features(df_viz, 30)
+        df_viz.rename(columns={'heart_rate':'hr'}, inplace=True)
+
+        # Predict lactate
+        try:
+            X_v = df_viz.drop(columns=[c for c in ['lactate','recovery_score'] if c in df_viz], errors='ignore')
+            y_v = predict_lactate(lactate_model, X_v)
+            df_viz['pred_lactate'] = y_v
+        except Exception as e:
+            st.error(f"Prediction failed: {e}")
+            st.stop()
+
+        # Define lactate color band
+        def lactate_color(val):
+            if val < 2.5: return "blue"
+            elif val < 4.0: return "orange"
+            else: return "red"
+
+        df_viz['zone_color'] = df_viz['pred_lactate'].apply(lactate_color)
+
+        # Build 3D scatter plot
+        fig3d = go.Figure(data=[
+            go.Scatter3d(
+                x=df_viz['power'],
+                y=df_viz['hr'],
+                z=df_viz['pred_lactate'],
+                mode='markers',
+                marker=dict(
+                    size=4,
+                    color=df_viz['zone_color'],
+                    opacity=0.7
+                )
+            )
+        ])
+
+        fig3d.update_layout(
+            scene=dict(
+                xaxis_title='Power (W)',
+                yaxis_title='Heart Rate (bpm)',
+                zaxis_title='Predicted Lactate (mmol/L)'
+            ),
+            margin=dict(l=0, r=0, t=40, b=0),
+            height=600,
+            title="3D Lactate Surface with Zone Colors"
+        )
+
+        st.plotly_chart(fig3d, use_container_width=True)
+
+        st.markdown("""
+        **Zone Colors:**  
+        - 🟦 **Blue** — Aerobic (low lactate)  
+        - 🟧 **Orange** — Threshold approaching  
+        - 🔴 **Red** — Anaerobic (lactate accumulating)  
+        """)
+
+
+# ===========================================================
+# 📈 Model History (Training Log Visualizer)
+# ===========================================================
+from training_log_visualizer import show_training_log_dashboard
+
+# Add new tab at the end
+tab_model_hist = st.tabs(["📈 Model History"])[0]
+with tab_model_hist:
+    show_training_log_dashboard()
+
