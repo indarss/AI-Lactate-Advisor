@@ -12,14 +12,22 @@ def show_training_log_dashboard():
     st.subheader("📈 Training History")
     st.dataframe(df)
 
-    fig = px.line(
-        df, x="timestamp", y=["lac_r2","rec_r2"],
-        title="Model R² Over Time"
+    # --- R² Chart ---
+    fig_r2 = px.line(
+        df,
+        x="timestamp",
+        y=["r2_lactate", "r2_recovery"],
+        title="Model R² Over Time",
+        markers=True
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig_r2, use_container_width=True)
 
-    fig2 = px.line(
-        df, x="timestamp", y=["lac_mae","rec_mae"],
-        title="Model MAE Over Time"
+    # --- MAE Chart ---
+    fig_mae = px.line(
+        df,
+        x="timestamp",
+        y=["mae_lactate", "mae_recovery"],
+        title="Model MAE Over Time",
+        markers=True
     )
-    st.plotly_chart(fig2, use_container_width=True)
+    st.plotly_chart(fig_mae, use_container_width=True)

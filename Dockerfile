@@ -11,7 +11,8 @@ WORKDIR /app
 # Install system dependencies (LightGBM + scientific libs)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
-    libatlas-base-dev \
+    libopenblas-dev \
+    liblapack-dev \
     libgomp1 \
     && rm -rf /var/lib/apt/lists/*
 

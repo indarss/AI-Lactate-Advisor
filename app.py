@@ -51,6 +51,59 @@ def align_features(df, feature_list):
         return df
     return df.reindex(columns=feature_list, fill_value=0)
 
+def plot_hr_slope_plotly(df: pd.DataFrame):
+    """
+    Interactive Plotly HR slope visualization.
+    Displays HR, scaled Power, and HR slope over time.
+    Ensures slope columns exist using add_hr_slopes().
+    """
+    df = df.copy()
+
+    # Ensure HR slope exists (rename for the utility)
+    if 'hr_slope_time' not in df.columns:
+        if 'hr' in df.columns:
+            df_tmp = df.rename(columns={'hr': 'heart_rate'})
+            df_tmp = add_hr_slopes(df_tmp)
+            df['hr_slope_time'] = df_tmp['hr_slope_time']
+        else:
+            df['hr_slope_time'] = 0.0
+
+    # Handle missing cols
+    df = ensure_columns(df, ['time', 'hr', 'power'])
+
+    # scale power and slope
+    hr_min = df['hr'].min()
+    power_scaled = (df['power'] / max(1, df['power'].max()) * 40) + hr_min
+    slope_scaled = (df['hr_slope_time'].fillna(0) * 80) + df['hr'].mean()
+
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=df['time'], y=df['hr'],
+        mode='lines', name='Heart Rate (bpm)'
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=df['time'], y=power_scaled,
+        mode='lines', name='Power (scaled)'
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=df['time'], y=slope_scaled,
+        mode='lines', name='HR Slope (scaled, bpm/s)',
+        line=dict(dash='dot')
+    ))
+
+    fig.update_layout(
+        title="💓 Heart Rate Slope Trends (Interactive)",
+        xaxis_title="Time (s)",
+        yaxis_title="Value / Scaled",
+        legend_orientation="h",
+        margin=dict(l=10, r=10, t=50, b=10)
+    )
+
+    return fig
+
 
 def generate_synthetic_session(n_seconds: int = 300, seed: int = 42) -> pd.DataFrame:
     rng = np.random.default_rng(seed)
