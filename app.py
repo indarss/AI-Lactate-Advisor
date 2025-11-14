@@ -14,10 +14,9 @@ import joblib
 
 # === Model & utils ===
 from model_utils import (
-    make_features,
-    load_model, prepare_features,
+    load_model,
     predict_lactate, predict_recovery,
-    get_shap_summary, smooth_series,
+    get_shap_summary, 
     add_hr_slopes, add_rolling_features
 )
 
