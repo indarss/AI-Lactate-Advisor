@@ -241,6 +241,8 @@ It introduces dynamic Polar API integration, mock data simulation, and upload-ba
 ![Wearable to AI Pipeline](A_flowchart_diagram_illustrates_the_integration_pr.png)
 *Figure: End-to-end wearable data to AI prediction workflow.*
 
+## 📡 Real-Time Feedback Flow (block diagram)
+Wearable → Streamlit App → Feature Engine → AI Models → Lactate + Recovery Predictions → Athlete Feedback
 
 
 ## 💬 Author & License
