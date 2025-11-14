@@ -249,7 +249,7 @@ with tab_live:
             title="Predicted Lactate Over Time",
             labels={"x":"Time (s)", "y":"mmol/L"}
         )
-        st.plotly_chart(fig_lp, use_container_width=True)
+        st.plotly_chart(fig_lp, use_container_width=True, key="lactate_line_chart")
 
         st.markdown("### 🎨 3D Visualization")
         st.caption("Blue=Aerobic · Orange=Threshold · Red=Anaerobic")
@@ -280,7 +280,7 @@ with tab_shap:
             y=mean_abs[idx],
             title="Global Feature Importance (mean |SHAP|)"
         )
-        st.plotly_chart(fig_bar, use_container_width=True)
+        st.plotly_chart(fig_bar, use_container_width=True, key="shap_global")
     except Exception as e:
         st.warning(f"SHAP failed: {e}")
 
@@ -290,7 +290,7 @@ with tab_shap:
 with tab_hr:
     st.subheader("💓 HR Slope Trends")
     if df_session is not None:
-        st.plotly_chart(plot_hr_slope_plotly(df_session), use_container_width=True)
+        st.plotly_chart(plot_hr_slope_plotly(df_session), use_container_width=True, key="slope_trend")
 
 # ======================================================
 # 🧬 RECOVERY DASHBOARD
@@ -319,7 +319,7 @@ with tab_rec:
 
     col1, col2 = st.columns([1,2])
     with col1:
-        st.plotly_chart(readiness_gauge(rec_pred), use_container_width=True)
+        st.plotly_chart(readiness_gauge(rec_pred), use_container_width=True, key="reco_gauge")
     with col2:
         st.write("Inputs used:")
         st.dataframe(Xr)
@@ -335,5 +335,5 @@ with tab_rec:
 with tab_3d:
     st.subheader("🎛️ 3D Lactate Visualization")
     if df_session is not None:
-        st.plotly_chart(plot_3d_lactate_zones(df_session, y_pred), use_container_width=True)
+        st.plotly_chart(plot_3d_lactate_zones(df_session, y_pred), use_container_width=True, key="3d_latate")
 
